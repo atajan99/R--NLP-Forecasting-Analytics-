@@ -1,0 +1,219 @@
+---
+title: 'Entity Recognition Assignment'
+author: "Atajan Abdyyev"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#do not change this
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries / Setup
+
+- In this section, include the *R* set up for Python to run. Import cleaned text of movie or tv shows from previous assignments. 
+
+```{r}
+##r chunk
+# import the clean text
+library(readr); library(stringr)
+
+fileName <- 'cleaned_text_Shrek_final.txt'
+shrek_r = read_file(fileName)
+
+#install.packages("wordnet")
+library(wordnet)
+library(reticulate)
+py_config()
+```
+
+- In this section, include import functions to load the packages you will use for Python.
+
+```{python}
+##python chunk
+from nltk.corpus import wordnet as wn
+import pandas as pd
+from nltk.wsd import lesk
+from nltk import word_tokenize
+import re
+
+import spacy
+#nlp = spacy.load("en_core_web_sm")
+
+```
+
+## NER Tagging
+
+- Create a blank spacy model to create your NER tagger. 
+
+```{python}
+##python chunk
+#Create a blank spacy model to create your NER tagger.
+nlp = spacy.blank("en") 
+
+#add a name for training
+nlp.vocab.vectors.name = 'Shrek_model_training' 
+
+```
+
+- Add the NER pipe to your blank model. 
+
+```{python}
+##python chunk
+#add NER pipeline
+ner = nlp.create_pipe('ner')  
+#add pipeline to our blank model we created
+nlp.add_pipe(ner, last=True)  
+```
+
+- Create training data. Use the movie synopsis data from Canvas.
+  - Create training data with at least 5 movie synopses. 
+  - Tag those synopses with PERSON, LOCATION, GPE, etc. 
+
+```{python}
+str = "donkey, there's no we. there's no our. there's just me and my swamp.the first thing I'm gonna do is build a ten-foot around my land."
+#str[0:6]
+re.search("swamp", str) #returns range of characters.
+```
+
+```{python - test area for kws}
+##python chunk
+training_data = [ #start our list
+  
+  ( #start a tuple
+    #first is the text
+    u"It ain't easy bein' green -- especially if you're a likable (albeit smelly) ogre named Shrek. On a mission to retrieve a gorgeous princess from the clutches of a fire-breathing dragon, shrek teams up with an unlikely compatriot -- a wisecracking donkey.", 
+    { #start a dictionary
+      #first key is always entities
+      #second value which is a LIST of TUPLES
+      'entities': [ #start value list
+        #slicing to find the specific section of the text
+        #start number, end number, entity tag
+        (76,80,'CREATURE') , (87,92,'NAME'), (130,138, 'CREATURE'), (177,183,'CREATURE') ,(246, 252,'NAME')
+      ] #end value list
+    } #end dictionary 
+  ), #end of the tuple 
+  
+  ( #start tuple 
+    #text 
+    u"donkey, there's no we. there's no our. there's just me and my swamp.the first thing I'm gonna do is build a ten-foot around my land.", 
+    { #start dictionary 
+      'entities': [ #list for values
+        (127, 131,'PLACE'), (0,6, 'NAME'), (62,67, 'PLACE') 
+      ] #end of list 
+    } #end dictionary
+  ) , #end tuple,
+  
+  ( #start tuple 
+    #text 
+    u"oh, wow! that was really scary. ah! thank you!", 
+    { #start dictionary 
+      'entities': [ #list for values
+        (0,2,'EMOTION'), (4,7, 'EMOTION'), (32,34, 'EMOTION')  
+      ] #end of list 
+    } #end dictionary
+  ) ,#end tuple,
+  
+  ( #start tuple 
+    #text 
+    u"oh, come on! that is the last thing on my mind. the princess here was just- (fiona pulls the arrow out) ugh! (he turns to look at fiona who holds up the arrow with a smile) ow!. please! i do not want to go back there! you do not know what it is like to be considered a freak. (pause while he looks at shrek) well, maybe you do. but that is why we got to stick together. you got to let me stay! please! please! shrek okay! okay! but one night only. donkey ah! thank you!", 
+    { #start dictionary 
+      'entities': [ #list for values
+        (0,2,'EMOTION'), (4,13, 'EMOTION'), (77,82, 'NAME'), (52,60, 'CREATURE'), (104,108, 'EMOTION'), (130,135,'NAME'), (173, 176, 'EMOTION'), (178, 185, 'EMOTION'),  (455, 458, 'EMOTION'), (416, 421, 'EMOTION'), (402,409,'EMOTION'), (301,306, 'NAME')
+      ] #end of list 
+    } #end dictionary
+  ) ,#end tuple,
+  ( #start tuple 
+    #text 
+    u"montage of different scenes. shrek arriving back home. fiona being fitted for the wedding dress. donkey at a stream running into the dragon. shrek cleaning up his house. fiona eating dinner alone. shrek eating dinner alone.", 
+    { #start dictionary 
+      'entities': [ #list for values
+        (21, 27,'PLACE'), (49, 53, 'PLACE'), (55, 60, 'NAME') , (97, 103, 'NAME'), (133, 139, 'CREATURE'), (29, 34, 'NAME'), (163, 168, 'PLACE') 
+      ] #end of list 
+    } #end dictionary
+  ), #end tuple,
+  ( #start tuple 
+    #text 
+    u"they all start screaming as the dragon gains on them. shrek spots \
+               a descending slide and jumps on. but unfortunately there is a crack in the stone and it hits shrek right in the groin. his eyes cross and as he reaches the bottom of the slide he stumbles off and walks lightly.", 
+    { #start dictionary 
+      'entities': [ #list for values
+        (15,24,'ACTION'), (169,173,'ACTION'), (259,268,'ACTION')  
+      ] #end of list 
+    } #end dictionary
+  )
+  
+] #end list 
+
+```
+
+- Add the labels that you used above to your NER tagger. 
+
+```{python}
+##python chunk
+nlp.entity.add_label('NAME')
+nlp.entity.add_label('PLACE')
+nlp.entity.add_label('CREATURE')
+nlp.entity.add_label('EMOTION')
+nlp.entity.add_label('ACTION')
+
+
+```
+
+- Train your NER tagger with the training dataset you created. 
+
+```{python}
+##python chunk
+#begin training
+
+optimizer = nlp.begin_training()
+import random
+
+#run through training
+for i in range(20):
+    random.shuffle(training_data)
+    for text, annotations in training_data:
+        nlp.update([text], [annotations], sgd=optimizer)
+        
+shrek_py = r.shrek_r
+example3 = nlp(shrek_py)        
+```
+
+## Using your NER Tagger 
+
+- Use your movie/tv show data to test the tagger. 
+- Use your new NER tagger to see if it grabs any of the entities you included. 
+
+```{python - options(warn =-1)}
+import warnings
+warnings.filterwarnings('ignore')
+##python chunk
+##save your model if you want to use it later
+#nlp.to_disk("./model")
+
+entities = pd.DataFrame(columns = ['label', 'text'])
+
+for entity in example3.ents:
+#  print(entity.label_, ' | ', entity.text) #
+  entities = entities.append({'label' : entity.label_, 'text' : entity.text}, ignore_index = True);
+
+#  entities = entities.append({'text' : entity.text}, ignore_index = True)
+  
+  #entities['label']=entity.label_
+  #entities['text'].append(entity.text,ignore_index = True)
+  
+print(entities.head(35))
+print(entities.groupby('label')['text'].count())
+```
+
+## Evaluation the Results
+
+- QUESTION: Evaluate and interpret the results of your tagger. Make sure to address the following questions.
+  - How good is your tagger? What could make it better?
+  - What are the common types of entities in your movie/tv show? What could you infer about the movie/tv show from the entities in it?
+  
+- ANSWER: My tagger is not able to recognize a lot of labels correctly, but has some wrong ones, needs more training for an empty tagger. I know what caused it, adding Tag of Emotion skewed a little with exclamations being used. I added Emotion because I wanted to see how emotional are characters and many things became Emotions. More examples for training would make it better.
+
+- There are far more emotions, and the pattern is likely when an exclamation is used in the sentences like after uh, oh,etc. But movie has many gasps and excited exclamations used after names, I also trained emotions a little better than other tags. Second after emotions are names and creatures used. Creature shows little more frequent issue, but that is due to lower training done on it and the construct of script, and movie where anything can be a living creature since it is a fairy tale.
+We could infer that the movie is not boring and a lot of emotional talk is going on. We can assume that there are a lot of dialogues since names and creatures are mentioned a lot. For a movie that is of an adventure, location is not of an importance in the dialogues, even though entire movie script is based on Shrek trying to get his swamp back and has to travel a lot in the movie.
