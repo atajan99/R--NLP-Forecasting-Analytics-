@@ -1,0 +1,261 @@
+---
+title: 'Part of Speech Tagging Assignment'
+author: "Atajan ABdyyev"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#do not change this
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries / Setup
+
+- In this section, include the libraries you need for the *R* questions AND import your cleaned text data from the last assignment.  
+
+```{r}
+##r chunk
+library(reticulate)
+library(readr); library(stringr)
+
+
+
+#devtools::install_github("trinker/termco",force = TRUE)
+#devtools::install_github("trinker/coreNLPsetup",force = TRUE)
+#devtools::install_github("trinker/tagger",force = TRUE)
+#install.packages("qdap")
+#devtools::install_github("bnosac/RDRPOSTagger", INSTALL_opts="--no-multiarch",force = TRUE)
+library(tagger)
+#library(dplyr)
+#library(qdap)
+library(RDRPOSTagger)
+#library(udpipe)
+
+#book_r = cleaned_text_Shrek_final.txt #entire book in r
+fileName <- 'cleaned_text_Shrek_final.txt'
+shrek_r = read_file(fileName)
+#shrek_r
+
+```
+
+```{python}
+##python chunk
+import spacy
+import pandas as pd
+import nltk
+from nltk.corpus import brown
+from nltk.tokenize import word_tokenize
+#this is very common naming to get spacy language models started
+nlp = spacy.load('en_core_web_sm')
+#import matplotlib.pyplot as plt
+
+shrek_python = r.shrek_r
+print(shrek_python[0:1300]) #chapter, and charstrings as python
+
+#with open('cleaned_text_Shrek_final.txt') as f:
+#    shrek_python = f.readlines()
+#print(shrek_python)
+```
+
+## Tagger Package
+
+- Use the `tagger` package to tag your chosen movie/tv shows. 
+- Use something like `(movie[1])[[1]][1:10]` to print out the first few tags. 
+- Use the universal tag set and plot options to see what the most common parts of speech are for your chapter.
+- What are the top two most common parts of speech? Most common parts of speech for the first chapter are Verbs, periods, and Nouns
+
+```{r}
+library(tagger)
+##r chunk
+
+#Use the `tagger` package to tag your chosen movie/tv shows. 
+tags_r = tag_pos(shrek_r,element.chunks = floor(1000)) 
+#tags_r
+
+# - Use something like `(movie[1])[[1]][1:10]` to print out the first few tags. 
+tag_pos(word(string = shrek_r, start = 1, end = 160)) 
+
+
+#- Use the universal tag set and plot options to see what the most common parts of speech are for your chapter.
+tag_pos(shrek_r,element.chunks = floor(1000)) %>% as_universal() %>% plot()
+
+#- What are the top two most common parts of speech?
+cat('Most common parts of speech for the first chapter are Verbs, periods, and Nouns')
+
+```
+
+## RDR POS Tagger
+
+- Create an English language model that tags for part of speech.
+- Tag your movie/tv show for part of speech. 
+- Use something like `head(...(movie[1]))` to print out the first few examples. 
+
+```{r}
+##r chunk
+
+#creating English language model that tags parts of speech
+create_tagger <- rdr_model(language = "English", annotation = "POS")
+
+#- Tag your movie/tv show for part of speech. 
+POS_r = (rdr_pos(create_tagger, x = shrek_r)) 
+
+#- Use something like `head(...(movie[1]))` to print out the first few examples. 
+head(POS_r)
+```
+
+## spaCy
+
+- Import spacy and the English language module.
+- Tag the movie/tv show using spacy, and print out the results. 
+- Use the `pandas` option at the beginning of the lecture to print out only a few rows. 
+
+```{python}
+##python chunk
+
+#- Import spacy and the English language module.
+nlp = spacy.load('en_core_web_sm') 
+
+#- Tag the movie/tv show using spacy, and print out the results. 
+tagged_python_fewrows = nlp(shrek_python) 
+#print(tagged_python_fewrows[0:100]) #will print out text only, see below to print text,pos, and tag of few rows
+#print('---'*5)
+
+
+#- Use the `pandas` option at the beginning of the lecture to print out only a few rows. 
+for word in tagged_python_fewrows[0:25]: #prinitng out 25 elements / couple rows
+  print(word.text, word.pos_, word.tag_)
+
+```
+
+## Training your own tagger
+
+- Create a Default tagger in Python using `nltk`. 
+- The default option should be "NN" for nouns.
+- You do not have to use the tagger yet, just create it for a combined tagger to use later. (Don't tag! Don't print it out!)
+
+```{python}
+##python chunk
+
+#- Create a Default tagger in Python using `nltk`. 
+default_tagger = nltk.DefaultTagger('NN')
+
+##assign that to tokenized Brown words
+tokens = brown.words(categories = "humor") #just randomly picking the news words
+
+#tag those words!
+pd.DataFrame(default_tagger.tag(tokens)).head
+
+```
+
+## Unigram Tagger 
+
+- Create a unigram tagger that is trained on the entire Brown corpus with tagged sentences. 
+  - Import the Brown corpus.
+  - Split the data into test and train. 
+  - Train your unigram tagger on the training sentences.
+  - Use the default tagger you created above as the backoff. 
+  - Do not use the tagger here, just train it. 
+
+```{python}
+##python chunk
+#- Create a unigram tagger that is trained on the entire Brown corpus with tagged sentences. 
+brown_tagged_sents = brown.tagged_sents() #tagged sentences
+unigram_tagger = nltk.UnigramTagger(brown_tagged_sents)
+
+
+#  - Import the Brown corpus.
+#from nltk.corpus import brown
+
+#  - Split the data into test and train. 
+##figure out where the split is
+size = int(len(brown_tagged_sents) * 0.9) # 90% of tagged sentences
+
+##break apart the data based on that split 
+train_sents = brown_tagged_sents[:size] # first 90% 
+test_sents = brown_tagged_sents[size:] # last 10%
+
+
+#  - Train your unigram tagger on the training sentences.
+unigram_tagger = nltk.UnigramTagger(train_sents)
+
+# evaluate tagger test data
+#unigram_tagger.evaluate(test_sents)
+
+
+#  - Use the default tagger you created above as the backoff. 
+t0 = default_tagger
+
+#  - Do not use the tagger here, just train it. 
+##default to noun
+t0 = nltk.DefaultTagger('NN')
+##single words in context, go back to noun if necessary
+t1 = nltk.UnigramTagger(train_sents, backoff=t0)
+##double words in context, back up to single words
+t2 = nltk.BigramTagger(train_sents, backoff=t1)
+
+```
+
+## Evaluate
+
+- Use the `.evaluate` function on your testing data to determine the accuracy of your tagger. 
+
+```{python}
+##python chunk
+##how accurate is that
+#- Use the `.evaluate` function on your testing data to determine the accuracy of your tagger. 
+
+t2.evaluate(test_sents)
+unigram_tagger.evaluate(test_sents)
+
+```
+
+## Apply to Movie/TV show
+
+- Use the tagger you created above to apply to the movie/tv show.
+- Hint: be sure to tokenize the data first!
+- Use something like `tagger.tag(movie)[1:10]` to print out only the first ten tags. 
+
+```{python}
+#import matplotlib.pyplot as plt
+##python chunk
+#- Use the tagger you created above to apply to the movie/tv show.
+#- Hint: be sure to tokenize the data first!
+#- Use something like `tagger.tag(movie)[1:10]` to print out only the first ten tags. 
+
+tokenized = t2.tag(word_tokenize(shrek_python)) #tokenized and applied a t2 ##double words in context, back up to single words
+
+#count tags
+pos  = pd.DataFrame(tokenized, columns = ['word','tag'])
+#t2.evaluate(tokenized)
+
+##- Use something like `tagger.tag(movie)[1:10]` to print out only the first ten tags. 
+results = pos['tag'].value_counts()#.plot() need matplotlib
+results.head(10)
+
+results_words = pos['tag']#.plot() need matplotlib
+results_words.head(10)
+```
+
+## Compare Results
+
+- QUESTION: Examine the output from the different taggers we used to tag your movie/tv show. Make sure to address the following questions in answer. 
+  - Are there any immediate differences you can notice when tagging?
+  - Which tagger seems like the easiest to apply?
+  - Why might the Brown corpus not be very good at tagging movies/tv shows? 
+  - What are the most common part of speech?
+  - Do you appear to have more "action" (verbs), "actors" (nouns), or "description" (adjectives and adverbs)? Note here "actor" does not mean literal actor on the screen, but the noun that is "acting" out the verb. 
+
+
+- ANSWER: It seems like python is harder to set up tagger than R. I see numbers for POS in R vs python different numbers. R has more Verbs than Nouns, though very close, while Python has more Nouns than Verbs. I believe Python has it more correct because in SHrek they address to each other a lot and mention character names a lot when turns of speech are changed. I want to say Python has more correct results than R.
+
+R is easier to use and quick, but not as reliable.
+
+Because it might be outdated to correctly capture new words or not as useful for informal speech to correctly capture pos, and it starts tagging everything as a noun.
+
+Verbs in R and Nouns in Python. Signfificant difference between R and Python. ALthough in both Verbs and Nouns are most common POS and that is expected, proportions are skewed greatly. I trust python more than R here.
+
+I have more Nouns if I go with Python. This is more expected because in SHrek they address each other often and character names appear before they talk. I am however a little surprised python has 3500+ nouns while ~900 verbs. This is a bit suspicious.
+
+
+
