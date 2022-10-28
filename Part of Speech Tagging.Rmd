@@ -1,5 +1,5 @@
 ---
-title: 'Part of Speech Tagging Assignment'
+title: 'Part of Speech Tagging'
 author: "Atajan ABdyyev"
 date: "`r Sys.Date()`"
 output: html_document
