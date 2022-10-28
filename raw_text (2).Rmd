@@ -1,0 +1,365 @@
+---
+title: 'Processing Raw Text Assignment'
+author: "Atajan Abdyyev"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#do not change this
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In each step, you will process your data for common text data issues. Be sure to complete each one in *R* and Python separately - creating a clean text version in each language for comparison at the end. Update the saved clean text at each step, do not simply just print it out. 
+
+## Libraries / R Setup
+
+- In this section, include the libraries you need for the *R* questions.  
+
+```{r}
+##r chunk
+library(reticulate) # to enable python
+library(stringr) # to work on string formatting
+library(rvest)
+library(tokenizers)
+library(stringi)
+library(textclean) #contractions
+library(hunspell) #spelling
+#library(readr)
+library(tm)#stemming
+library(textstem) # lemmatizing
+
+```
+
+- In this section, include import functions to load the packages you will use for Python.
+
+```{python}
+##python chunk
+from bs4 import BeautifulSoup
+import requests
+import re
+import nltk
+import unicodedata
+import contractions
+from textblob import Word
+import spacy
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer  #stemming
+from nltk.stem import LancasterStemmer #stemming
+
+```
+
+## Import data to work with
+
+- Pick a movie that you would interested in analyzing. You can also use **two** one-hour long TV shows or **four** half-hour long TV shows. 
+- Search for the subtitles for that movie or TV shows. Please note some of the subtitle websites are junk, do not download anything from a popup! Here is a list of potential sites to use, https://www.nyfa.edu/student-resources/10-great-websites-download-movie-scripts/
+- I recommend using this site, https://imsdb.com/
+- Find the subtitles for your project.
+- List your movie/show here (note that each group should have a different set of subtitles, I will coordinate). If you have picked a TV show, list the specific episodes. 
+
+  - MOVIE/TVSHOW: Shrek
+  
+- Use EITHER R OR Python to import the text for your movie/tv shows. Be sure to clean out html code at beginning and end of text.
+
+```{r}
+##r chunk
+
+```
+
+```{python}
+##python chunk
+#Movie Chose: SHREK  
+#url = https://imsdb.com/scripts/Shrek.html
+#Note: commented out code is first version I had to revisit if I were to strip all empty spaces and save as an ongoing bing long text. Updated version has html.parser to keep the format of the subtitles, and updated re.sub() to remove everything before scripts starts and after it ends. New code is shorter and cleaner for subtitles/script task. ALso, python printing without range of [0:xyz] will start outputting mid script, kept from 0 to show it works properly.
+
+blog_post = requests.get("https://imsdb.com/scripts/Shrek.html") #webscrape page
+content = blog_post.content #pull the content part of the webscraped page
+
+clean_content = BeautifulSoup(content, 'html.parser') #cleaning the webscraped page via BeautifulSoup package , if adding ,'html-parser' will keep format
+clean_text = clean_content.get_text() #get text of the clean content
+#clean_text = re.sub('\\n', '', clean_text) #remove \n 
+#clean_text = re.sub('\\r', '', clean_text) #remove \r
+#clean_text = re.sub('\\t', '', clean_text) #remove \t
+#clean_text = re.sub('\\t', '', clean_text) #remove \t
+#clean_text = re.sub('\\t', '', clean_text) #remove \t
+#clean_text = re.sub('\\s', '', clean_text) #remove \t
+
+#clean_text = re.match("(.*?) END",clean_text).group()# keep everything before THE END
+#clean_text = re.sub('^(.*?SCRIPTS)',"", clean_text)#remove everything after first instance of Shrek to hide code section of the page
+
+#clean_text = re.findall('(?<=SCRIPTS ).*$', clean_text)
+#clean_text = re.sub('^.*?SHREK',"", clean_text)
+clean_text = re.sub(r'^.*?Elliott', '', clean_text, flags=re.DOTALL)#.strip() #VERY IMPORTANT TO KEEP flags!!! cleaning beginnign from additional code junk, everything including first occurance Elliot
+clean_text = re.sub(r"(?<=END).*$", '', clean_text,flags=re.DOTALL)#.strip() #VERY IMPORTANT TO KEEP flags!!! cleans everything afther the word END 
+
+                                  
+print(clean_text[0:200])
+```
+
+
+Save results as a .txt file for later assignments using either R OR Python.
+
+```{r}
+##r chunk
+#write(clean_text, 'clean_text_r.txt')
+```
+
+```{python}
+##python chunk 
+with open('clean_text_Shrek.txt', 'w') as outfile:
+  outfile.write(str(clean_text)) #save the cleaned text file 
+```
+
+## Lower case
+
+- Lower case the text you created using *R*.
+
+```{r}
+##r chunk
+library(reticulate)
+colnames(py$clean_text)
+clean_text_r = str_to_lower(py$clean_text) #lowercasing with r
+print(unlist(strsplit(clean_text_r, "\r"))[6:10])
+
+
+```
+
+- Lower case the text you created using python.
+
+```{python}
+##python chunk
+clean_text = clean_text.lower() #lower cased text and save as clean text
+
+print(clean_text[1:200]) #output first 2000 chars
+```
+
+## Removing symbols
+
+- Use the `stringi` package to remove any symbols from your text. 
+
+```{r}
+##r chunk
+library(reticulate)
+
+clean_text_r = stri_trans_general(str = clean_text_r,
+                   id = "latin-ascii") # remove any symbols
+
+#head(clean_text_r,10)
+print(unlist(strsplit(clean_text_r, "\r"))[6:20])
+
+```
+
+- Use the `unicodedata` in python to remove any symbols from your text. 
+
+```{python}
+##python chunk
+
+
+def remove_accented_chars(text):
+  text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8', 'ignore')
+  return text
+
+clean_text =remove_accented_chars(clean_text) #remove any sumbols with python
+print(clean_text[0:350])
+```
+
+## Contractions
+
+- Replace all the contractions in your webpage using *R*.
+
+```{r}
+##r chunk
+clean_text_r = str_replace_all(clean_text_r, 
+                        pattern = "’", 
+                        replacement = "'")
+
+clean_text_r = replace_contraction(clean_text_r, 
+                    contraction.key = lexicon::key_contractions, #default
+                    ignore.case = T) #default
+print(unlist(strsplit(clean_text_r, "\r"))[6:20])
+
+```
+
+- Replace all the contractions in your webpage using python.
+
+```{python}
+##python chunk
+
+
+clean_text=contractions.fix(clean_text) #replacing contractions
+print(clean_text[0:350])  #output text wtithout contractions
+
+
+
+```
+  
+## Tokenization 
+
+- Use the `tokenize_words` function to create a set of words for your *R* clean text. 
+
+```{r}
+##r chunk
+tokenized_r = tokenize_words(clean_text_r,
+               lowercase = T,
+               stopwords = NULL, #more on this later
+               strip_punct = T,
+               strip_numeric = F,
+               simplify = F) #list format
+tokenized_r[[1]][1:20] #saved tokenized words
+```
+
+- Use `nltk` or `spacy` to tokenize the words from your python clean text. 
+
+```{python}
+##python chunk
+tokenized_py = nltk.word_tokenize(clean_text) #tokenize words
+print(tokenized_py[0:20])
+```
+
+## Spelling
+
+- Fix any spelling errors with the `hunspell` package in *R* - it's ok to use the first, most probable option, like we did in class. 
+- DO NOT save results from this step!
+
+
+```{r}
+##r chunk
+tokenized_r_vector =as.vector(tokenized_r[[1]]) # vectorized tokenized words  just in case
+
+# Spell check the words
+spelling.errors <- hunspell(tokenized_r_vector)
+spelling.sugg <- hunspell_suggest(unique(unlist(spelling.errors)), dict = dictionary("en_US"))
+
+# Pick the first suggestion
+spelling.sugg <- unlist(lapply(spelling.sugg, function(x) x[1]))
+spelling.dict <- as.data.frame(cbind(spelling.errors = unique(unlist(spelling.errors)),spelling.sugg))
+spelling.dict$spelling.pattern <- paste0("\\b", spelling.dict$spelling.errors, "\\b")
+
+#Replace the words 
+stri_replace_all_regex(str = tokenized_r_vector,
+                       pattern = spelling.dict$spelling.pattern,
+                       replacement = spelling.dict$spelling.sugg,
+                       vectorize_all = FALSE)[1:20]
+```
+
+- Fix your spelling errors using `textblob` from python. 
+
+```{python}
+##python chunk
+#wordlist = words#["thse", "wods", "mispelled"]
+
+#you must give it a tokenized list 
+#if you give it a long string, you'll get single letters back
+#[Word(token).correct() for token in words]
+[Word(token).correct() for token in tokenized_py][0:20] #corrected tokens using the tokenized list I made in previous task
+```
+
+## Lemmatization
+
+- Lemmatize your data in *R* using `textstem`. 
+
+```{r}
+##r chunk
+lemmatized_r_words = lemmatize_words(tokenized_r_vector) #lemmatized words
+lemmatized_r_sentences = lemmatize_strings(clean_text_r) #lemmatized sentences 
+#lemmatized_r_words
+#lemmatized_r_sentences
+
+print(unlist(strsplit(lemmatized_r_sentences, " "))[1:10])
+print(lemmatized_r_words[1:10])
+
+```
+
+- Lemmatize your data in python using `spacy`. 
+
+```{python}
+##python chunk
+nlp = spacy.load('en_core_web_sm')
+
+def lemmatize_text(text):
+  text = nlp(text)
+  text = " ".join([word.lemma_ if word.lemma_ != "-PRON-" else word.text for word in text])
+  return text
+
+lemmatized_py_sentences = lemmatize_text(clean_text) #lemmatized sentence
+print(lemmatized_py_sentences[1:250])
+lemmatized_py_words = nltk.word_tokenize(lemmatized_py_sentences) #tokenize words and lemmatized words
+print(lemmatized_py_words[1:50])
+```
+
+## Stopwords
+
+- Remove all the stopwords from your *R* clean text. 
+
+```{r}
+##r chunk
+clean_text_r_removed = removeWords(clean_text_r, stopwords(kind = "SMART")) # removing stop words
+clean_text_r_removed = tokenize_words(clean_text_r_removed,
+               lowercase = T,
+               stopwords = NULL, #more on this later
+               strip_punct = T,
+               strip_numeric = F,
+               simplify = F) #list format
+clean_text_r_removed[[1]][1:15]
+```
+
+- Remove all the stop words from your python clean text. 
+
+```{python}
+##python chunk
+
+
+set(stopwords.words('english'))
+clean_text_removed=[word for word in nltk.word_tokenize(clean_text) if word not in stopwords.words('english')] #removed stopwords
+clean_text_removed[0:25]
+```
+
+## Check out the results
+
+- Print out the first 100 tokens of your clean text from *R*. 
+
+```{r}
+##r chunk 
+clean_text_r_removed[[1]][1:100] #prinitng first 100 tokens from the list
+```
+
+- Print out the first 100 tokens of your clean text from python. 
+
+```{python}
+##python chunk
+print(clean_text_removed[0:100])#prinitng first 100 tokens from the list
+```
+
+Note: here you can print out, summarize, or otherwise view your text in anyway you want. 
+
+# Save the Results for Future Assignments
+
+- Using either R or Python save the cleaned text to a .txt file to use in future assignments.
+
+```{r}
+##r chunk
+#write(clean_text, 'clean_text_r.txt')
+```
+
+```{python}
+##python chunk
+with open('cleaned_text_Shrek_final.txt', 'w') as outfile:
+  outfile.write(str(clean_text)) #save the file
+```
+
+
+- QUESTION: Compare the results from your processing. Write a short paragraph answering the following questions. You will need to write more than a few sentences for credit. 
+  - Which text appears to be "cleaner"? 
+  
+  
+  - Or are they the same? 
+  
+  - What differences can you spot? 
+  
+  - Which processing approach appears to be easier? 
+
+- ANSWER:
+Second file seems to be a better and cleaner result. Also, R seems to do a better job lemmatizing and cleaning stop words than python. 
+
+I noticed & symbol got in python after stop words than in R. Also textblob in Python correcting spelling considered Shrek as Shriek while R kept it as Shrek. As for lemmatizing, order in R was not altered than Python, makes it easier to quickly glance values in the right order in R than in Python.R and Python are not a lot different but I would go with R here for lemmatizing and stop words. Otherwise Cleaned text is generally same as R, difference isnt drastic but I would trust with contractions, lemmatizing, and stopwords to R more.Only when doing lemmatizing and tokenizing words, R seems to do a better job.
+Overall, Python was easier because I could us re package to remove all the code part of webscraped page easily, also slicing is easier than R and requires less work in general to clean data at all stages.
